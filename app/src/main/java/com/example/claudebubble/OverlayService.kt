@@ -53,12 +53,44 @@ class BarView(context: Context) : View(context) {
     }
 }
 
+/** Кружок с крестиком, в который сбрасывают кнопку, чтобы убрать её с экрана. */
+class CloseView(context: Context) : View(context) {
+    var active = false
+        set(v) {
+            if (field != v) {
+                field = v
+                invalidate()
+            }
+        }
+    private val circle = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val cross = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        val cx = width / 2f
+        val cy = height / 2f
+        val r = minOf(width, height) / 2f
+        circle.color = if (active) COLOR_FILL else Color.parseColor("#B3000000")
+        canvas.drawCircle(cx, cy, r, circle)
+        cross.strokeWidth = r * 0.14f
+        val d = r * 0.32f
+        canvas.drawLine(cx - d, cy - d, cx + d, cy + d, cross)
+        canvas.drawLine(cx - d, cy + d, cx + d, cy - d, cross)
+    }
+}
+
 class OverlayService : Service() {
 
     companion object {
         const val AUTO_COLLAPSE_MS = 3000L   // сворачивание при бездействии
         const val PEEK_DP = 14               // сколько кнопки видно у края
         const val SWIPE_DP = 40              // минимальная длина горизонтального свайпа
+        const val CLOSE_SIZE_DP = 64         // размер кружка с крестиком
+        const val CLOSE_BOTTOM_DP = 56       // отступ кружка от низа экрана
+        const val CLOSE_HIT_DP = 80          // радиус, в котором кнопка "примагничивается" и удаляется
     }
 
     private lateinit var wm: WindowManager
@@ -69,6 +101,10 @@ class OverlayService : Service() {
     private lateinit var row5: UsageRow
     private lateinit var row7: UsageRow
     private lateinit var params: WindowManager.LayoutParams
+    private lateinit var closeView: CloseView
+    private lateinit var closeParams: WindowManager.LayoutParams
+    private var closeShown = false
+    private var overClose = false
 
     private val ui = Handler(Looper.getMainLooper())
     private val collapseRunnable = Runnable { collapse() }
@@ -89,6 +125,7 @@ class OverlayService : Service() {
 
     override fun onDestroy() {
         ui.removeCallbacksAndMessages(null)
+        hideClose()
         if (::root.isInitialized) runCatching { wm.removeView(root) }
         super.onDestroy()
     }
@@ -208,6 +245,21 @@ class OverlayService : Service() {
             y = dp(200)
         }
 
+        closeView = CloseView(this)
+        closeParams = WindowManager.LayoutParams(
+            dp(CLOSE_SIZE_DP),
+            dp(CLOSE_SIZE_DP),
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = (screenWidth() - dp(CLOSE_SIZE_DP)) / 2
+            y = resources.displayMetrics.heightPixels - dp(CLOSE_BOTTOM_DP) - dp(CLOSE_SIZE_DP)
+        }
+
         root.setOnTouchListener(object : View.OnTouchListener {
             var startX = 0
             var startY = 0
@@ -229,11 +281,18 @@ class OverlayService : Service() {
                         if (moved) {
                             if (!docked) params.x = startX + dx
                             params.y = startY + dy
+                            showClose()
+                            updateCloseHover()
                             wm.updateViewLayout(root, params)
                         }
                     }
+                    MotionEvent.ACTION_CANCEL -> hideClose()
                     MotionEvent.ACTION_UP -> {
-                        if (!moved) {
+                        val dismiss = moved && overClose
+                        hideClose()
+                        if (dismiss) {
+                            stopSelf()
+                        } else if (!moved) {
                             onTap()
                         } else {
                             val dx = e.rawX - touchX
@@ -358,6 +417,38 @@ class OverlayService : Service() {
         val w = if (root.width > 0) root.width else dp(44)
         params.x = if (side < 0) 0 else screenWidth() - w
         wm.updateViewLayout(root, params)
+    }
+
+    // ------------------------------------------------- крестик для удаления
+
+    private fun showClose() {
+        if (closeShown) return
+        closeShown = true
+        closeView.active = false
+        runCatching { wm.addView(closeView, closeParams) }
+    }
+
+    private fun hideClose() {
+        overClose = false
+        if (!::closeView.isInitialized || !closeShown) return
+        closeShown = false
+        runCatching { wm.removeView(closeView) }
+    }
+
+    /** Если кнопка у кружка — подсвечиваем его и притягиваем кнопку к центру. */
+    private fun updateCloseHover() {
+        val tx = closeParams.x + closeParams.width / 2f
+        val ty = closeParams.y + closeParams.height / 2f
+        val bx = params.x + root.width / 2f
+        val by = params.y + root.height / 2f
+        val dx = bx - tx
+        val dy = by - ty
+        overClose = dx * dx + dy * dy <= dp(CLOSE_HIT_DP).toFloat().let { it * it }
+        closeView.active = overClose
+        if (overClose) {
+            params.x = (tx - root.width / 2f).toInt()
+            params.y = (ty - root.height / 2f).toInt()
+        }
     }
 
     private fun clampToScreen() {
