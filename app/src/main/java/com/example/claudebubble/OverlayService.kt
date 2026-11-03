@@ -86,7 +86,8 @@ class OverlayService : Service() {
 
     companion object {
         const val AUTO_COLLAPSE_MS = 3000L   // сворачивание при бездействии
-        const val PEEK_DP = 14               // сколько кнопки видно у края
+        const val PEEK_DP = 36               // сколько кнопки видно у края (шире зоны жеста "назад")
+        const val DOCKED_MIN_HEIGHT_DP = 80  // высота "язычка" у края — больше зона нажатия
         const val SWIPE_DP = 40              // минимальная длина горизонтального свайпа
         const val CLOSE_SIZE_DP = 64         // размер кружка с крестиком
         const val CLOSE_BOTTOM_DP = 56       // отступ кружка от низа экрана
@@ -277,7 +278,7 @@ class OverlayService : Service() {
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (e.rawX - touchX).toInt()
                         val dy = (e.rawY - touchY).toInt()
-                        if (abs(dx) > dp(6) || abs(dy) > dp(6)) moved = true
+                        if (abs(dx) > dp(10) || abs(dy) > dp(10)) moved = true
                         if (moved) {
                             if (!docked) params.x = startX + dx
                             params.y = startY + dy
@@ -406,6 +407,7 @@ class OverlayService : Service() {
         root.post {
             side = s
             docked = true
+            root.minimumHeight = dp(DOCKED_MIN_HEIGHT_DP)
             val w = if (root.width > 0) root.width else dp(44)
             params.x = if (s < 0) -(w - dp(PEEK_DP)) else screenWidth() - dp(PEEK_DP)
             wm.updateViewLayout(root, params)
@@ -414,6 +416,7 @@ class OverlayService : Service() {
 
     private fun undock() {
         docked = false
+        root.minimumHeight = 0
         val w = if (root.width > 0) root.width else dp(44)
         params.x = if (side < 0) 0 else screenWidth() - w
         wm.updateViewLayout(root, params)
