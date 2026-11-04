@@ -86,8 +86,8 @@ class OverlayService : Service() {
 
     companion object {
         const val AUTO_COLLAPSE_MS = 3000L   // сворачивание при бездействии
-        const val PEEK_DP = 36               // сколько кнопки видно у края (шире зоны жеста "назад")
-        const val DOCKED_MIN_HEIGHT_DP = 80  // высота "язычка" у края — больше зона нажатия
+        const val PEEK_DP = 14               // сколько кнопки видно у края
+        const val DOCKED_MIN_HEIGHT_DP = 64  // высота "язычка" у края
         const val SWIPE_DP = 40              // минимальная длина горизонтального свайпа
         const val CLOSE_SIZE_DP = 64         // размер кружка с крестиком
         const val CLOSE_BOTTOM_DP = 56       // отступ кружка от низа экрана
