@@ -86,16 +86,20 @@ class OverlayService : Service() {
 
     companion object {
         const val AUTO_COLLAPSE_MS = 3000L   // сворачивание при бездействии
-        const val PEEK_DP = 14               // сколько кнопки видно у края
-        const val DOCKED_MIN_HEIGHT_DP = 64  // высота "язычка" у края
+        const val PEEK_DP = 28               // зона нажатия у края (было 14, теперь в 2 раза больше)
+        const val DOCKED_MIN_HEIGHT_DP = 128 // высота зоны нажатия у края (было 64, теперь в 2 раза больше)
         const val SWIPE_DP = 40              // минимальная длина горизонтального свайпа
         const val CLOSE_SIZE_DP = 64         // размер кружка с крестиком
         const val CLOSE_BOTTOM_DP = 56       // отступ кружка от низа экрана
         const val CLOSE_HIT_DP = 80          // радиус, в котором кнопка "примагничивается" и удаляется
-        // Видимая кнопка в 2 раза уже прежней (22dp вместо 44dp), зона нажатия — прежние 44dp.
-        const val ICON_DP = 12               // котик
-        const val BUBBLE_PAD_DP = 5          // отступ вокруг котика внутри видимой кнопки
-        const val HIT_PAD_DP = 11            // прозрачное поле вокруг кнопки, расширяющее зону нажатия
+        // Видимая кнопка: высота прежняя (44dp), ширина 10dp вместо 44dp (меньше на ~3/4).
+        const val ICON_W_DP = 6              // котик по ширине (было 24)
+        const val ICON_H_DP = 24             // котик по высоте
+        const val BUBBLE_PAD_H_DP = 2        // отступ кнопки по бокам от котика (было 10)
+        const val BUBBLE_PAD_V_DP = 10       // отступ кнопки сверху/снизу от котика
+        // Зона нажатия в свёрнутом виде — 88x88dp (была 44x44): прозрачное поле вокруг кнопки.
+        const val HIT_PAD_H_DP = 39
+        const val HIT_PAD_V_DP = 22
     }
 
     private lateinit var wm: WindowManager
@@ -210,7 +214,8 @@ class OverlayService : Service() {
     private fun buildViews() {
         icon = ImageView(this).apply {
             setImageResource(R.drawable.ic_bubble)
-            layoutParams = LinearLayout.LayoutParams(dp(ICON_DP), dp(ICON_DP))
+            scaleType = ImageView.ScaleType.FIT_XY   // котик сжимается только по ширине
+            layoutParams = LinearLayout.LayoutParams(dp(ICON_W_DP), dp(ICON_H_DP))
         }
 
         row5 = UsageRow("5 часов")
@@ -229,7 +234,7 @@ class OverlayService : Service() {
         bubble = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(BUBBLE_PAD_DP), dp(BUBBLE_PAD_DP), dp(BUBBLE_PAD_DP), dp(BUBBLE_PAD_DP))
+            setPadding(dp(BUBBLE_PAD_H_DP), dp(BUBBLE_PAD_V_DP), dp(BUBBLE_PAD_H_DP), dp(BUBBLE_PAD_V_DP))
             background = GradientDrawable().apply {
                 setColor(COLOR_BG)
                 cornerRadius = dp(22).toFloat()
@@ -403,7 +408,8 @@ class OverlayService : Service() {
         // вернуть к краю, у которого кнопка была
         root.post {
             if (!docked && side != 0) {
-                params.x = if (side < 0) 0 else screenWidth() - root.width
+                // кнопка вплотную к краю, прозрачная зона нажатия уходит за экран
+                params.x = if (side < 0) -root.paddingLeft else screenWidth() - root.width + root.paddingRight
                 wm.updateViewLayout(root, params)
             }
         }
@@ -437,23 +443,27 @@ class OverlayService : Service() {
         wm.updateViewLayout(root, params)
     }
 
-    /** Ширина зоны нажатия в свёрнутом виде (прежние 44dp). */
-    private fun collapsedWidth() = dp(ICON_DP + 2 * BUBBLE_PAD_DP + 2 * HIT_PAD_DP)
+    private fun bubbleWidth() = dp(ICON_W_DP + 2 * BUBBLE_PAD_H_DP)
+
+    /** Ширина зоны нажатия в свёрнутом виде (88dp). */
+    private fun collapsedWidth() = bubbleWidth() + 2 * dp(HIT_PAD_H_DP)
 
     /**
-     * Свёрнутый вид: узкая кнопка по центру зоны нажатия. У края кнопка прижата к стороне экрана,
-     * чтобы выглядывающие PEEK_DP целиком были кнопкой, а не прозрачным полем.
+     * Свёрнутый вид: узкая кнопка по центру зоны нажатия. У края кнопка стоит вплотную к краю экрана,
+     * а зона нажатия (PEEK_DP) идёт от края внутрь экрана.
      */
     private fun applyCollapsedPadding() {
-        val hit = dp(HIT_PAD_DP)
-        val pad = dp(BUBBLE_PAD_DP)
-        bubble.setPadding(pad, pad, pad, pad)
+        val hitH = dp(HIT_PAD_H_DP)
+        val hitV = dp(HIT_PAD_V_DP)
+        bubble.setPadding(dp(BUBBLE_PAD_H_DP), dp(BUBBLE_PAD_V_DP), dp(BUBBLE_PAD_H_DP), dp(BUBBLE_PAD_V_DP))
+        val hidden = collapsedWidth() - dp(PEEK_DP)      // часть окна за экраном
+        val inner = dp(PEEK_DP) - bubbleWidth()          // прозрачная часть зоны нажатия на экране
         if (docked && side < 0) {
-            root.setPadding(2 * hit, hit, 0, hit)   // кнопка у правого края окна (окно уехало влево)
+            root.setPadding(hidden, hitV, inner, hitV)
         } else if (docked && side > 0) {
-            root.setPadding(0, hit, 2 * hit, hit)   // кнопка у левого края окна (окно уехало вправо)
+            root.setPadding(inner, hitV, hidden, hitV)
         } else {
-            root.setPadding(hit, hit, hit, hit)
+            root.setPadding(hitH, hitV, hitH, hitV)
         }
     }
 
@@ -490,8 +500,10 @@ class OverlayService : Service() {
     }
 
     private fun clampToScreen() {
-        val maxX = screenWidth() - root.width
-        val nx = params.x.coerceIn(0, maxOf(maxX, 0))
+        // в свёрнутом виде прозрачное поле может заходить за экран — кнопка при этом у самого края
+        val minX = -root.paddingLeft
+        val maxX = screenWidth() - root.width + root.paddingRight
+        val nx = params.x.coerceIn(minX, maxOf(maxX, minX))
         if (nx != params.x) {
             params.x = nx
             wm.updateViewLayout(root, params)
