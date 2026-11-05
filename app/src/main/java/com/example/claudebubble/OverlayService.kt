@@ -92,10 +92,15 @@ class OverlayService : Service() {
         const val CLOSE_SIZE_DP = 64         // размер кружка с крестиком
         const val CLOSE_BOTTOM_DP = 56       // отступ кружка от низа экрана
         const val CLOSE_HIT_DP = 80          // радиус, в котором кнопка "примагничивается" и удаляется
+        // Видимая кнопка в 2 раза уже прежней (22dp вместо 44dp), зона нажатия — прежние 44dp.
+        const val ICON_DP = 12               // котик
+        const val BUBBLE_PAD_DP = 5          // отступ вокруг котика внутри видимой кнопки
+        const val HIT_PAD_DP = 11            // прозрачное поле вокруг кнопки, расширяющее зону нажатия
     }
 
     private lateinit var wm: WindowManager
-    private lateinit var root: LinearLayout
+    private lateinit var root: LinearLayout     // невидимая зона нажатия
+    private lateinit var bubble: LinearLayout   // видимая кнопка / панель
     private lateinit var icon: ImageView
     private lateinit var panel: LinearLayout
     private lateinit var message: TextView
@@ -205,7 +210,7 @@ class OverlayService : Service() {
     private fun buildViews() {
         icon = ImageView(this).apply {
             setImageResource(R.drawable.ic_bubble)
-            layoutParams = LinearLayout.LayoutParams(dp(24), dp(24))
+            layoutParams = LinearLayout.LayoutParams(dp(ICON_DP), dp(ICON_DP))
         }
 
         row5 = UsageRow("5 часов")
@@ -221,10 +226,10 @@ class OverlayService : Service() {
             addView(message)
         }
 
-        root = LinearLayout(this).apply {
+        bubble = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(10), dp(10), dp(10), dp(10))
+            setPadding(dp(BUBBLE_PAD_DP), dp(BUBBLE_PAD_DP), dp(BUBBLE_PAD_DP), dp(BUBBLE_PAD_DP))
             background = GradientDrawable().apply {
                 setColor(COLOR_BG)
                 cornerRadius = dp(22).toFloat()
@@ -233,6 +238,15 @@ class OverlayService : Service() {
             addView(icon)
             addView(panel)
         }
+
+        root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            addView(bubble, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ))
+        }
+        applyCollapsedPadding()
 
         params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -370,7 +384,8 @@ class OverlayService : Service() {
         expanded = true
         icon.visibility = View.GONE
         panel.visibility = View.VISIBLE
-        root.setPadding(dp(14), dp(12), dp(14), dp(6))
+        root.setPadding(0, 0, 0, 0)
+        bubble.setPadding(dp(14), dp(12), dp(14), dp(6))
         wm.updateViewLayout(root, params)
         root.post { clampToScreen() }
         ui.removeCallbacks(collapseRunnable)
@@ -383,7 +398,7 @@ class OverlayService : Service() {
         expanded = false
         panel.visibility = View.GONE
         icon.visibility = View.VISIBLE
-        root.setPadding(dp(10), dp(10), dp(10), dp(10))
+        applyCollapsedPadding()
         wm.updateViewLayout(root, params)
         // вернуть к краю, у которого кнопка была
         root.post {
@@ -401,25 +416,45 @@ class OverlayService : Service() {
             expanded = false
             panel.visibility = View.GONE
             icon.visibility = View.VISIBLE
-            root.setPadding(dp(10), dp(10), dp(10), dp(10))
+            applyCollapsedPadding()
             wm.updateViewLayout(root, params)
         }
         root.post {
             side = s
             docked = true
+            applyCollapsedPadding()
             root.minimumHeight = dp(DOCKED_MIN_HEIGHT_DP)
-            val w = if (root.width > 0) root.width else dp(44)
-            params.x = if (s < 0) -(w - dp(PEEK_DP)) else screenWidth() - dp(PEEK_DP)
+            params.x = if (s < 0) -(collapsedWidth() - dp(PEEK_DP)) else screenWidth() - dp(PEEK_DP)
             wm.updateViewLayout(root, params)
         }
     }
 
     private fun undock() {
         docked = false
+        applyCollapsedPadding()
         root.minimumHeight = 0
-        val w = if (root.width > 0) root.width else dp(44)
-        params.x = if (side < 0) 0 else screenWidth() - w
+        params.x = if (side < 0) 0 else screenWidth() - collapsedWidth()
         wm.updateViewLayout(root, params)
+    }
+
+    /** Ширина зоны нажатия в свёрнутом виде (прежние 44dp). */
+    private fun collapsedWidth() = dp(ICON_DP + 2 * BUBBLE_PAD_DP + 2 * HIT_PAD_DP)
+
+    /**
+     * Свёрнутый вид: узкая кнопка по центру зоны нажатия. У края кнопка прижата к стороне экрана,
+     * чтобы выглядывающие PEEK_DP целиком были кнопкой, а не прозрачным полем.
+     */
+    private fun applyCollapsedPadding() {
+        val hit = dp(HIT_PAD_DP)
+        val pad = dp(BUBBLE_PAD_DP)
+        bubble.setPadding(pad, pad, pad, pad)
+        if (docked && side < 0) {
+            root.setPadding(2 * hit, hit, 0, hit)   // кнопка у правого края окна (окно уехало влево)
+        } else if (docked && side > 0) {
+            root.setPadding(0, hit, 2 * hit, hit)   // кнопка у левого края окна (окно уехало вправо)
+        } else {
+            root.setPadding(hit, hit, hit, hit)
+        }
     }
 
     // ------------------------------------------------- крестик для удаления
