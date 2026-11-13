@@ -69,6 +69,10 @@ class MainActivity : Activity() {
             stopService(Intent(this, OverlayService::class.java))
         }
 
+        button("Чат с ИИ (бесплатный API)") {
+            startActivity(Intent(this, ChatActivity::class.java))
+        }
+
         root.addView(TextView(this).apply {
             text = "\nНажмите на кнопку «C» — покажет % использования лимита за 5 часов и 7 дней. " +
                 "Кнопку можно перетаскивать. Каждая проверка тратит ~1 токен."

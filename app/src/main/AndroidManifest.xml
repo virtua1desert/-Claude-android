@@ -23,6 +23,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ChatActivity"
+            android:label="Чат с ИИ"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false" />
+
         <service
             android:name=".OverlayService"
             android:exported="false"
