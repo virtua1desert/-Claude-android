@@ -179,7 +179,8 @@ class TvClient(private val ctx: Context, private val listener: Listener) {
 
     private val buttons = setOf(
         "UP", "DOWN", "LEFT", "RIGHT", "ENTER", "BACK", "HOME", "MENU", "EXIT",
-        "MUTE", "VOLUMEUP", "VOLUMEDOWN", "PLAY", "PAUSE", "REWIND", "FASTFORWARD"
+        "MUTE", "VOLUMEUP", "VOLUMEDOWN", "CHANNELUP", "CHANNELDOWN",
+        "PLAY", "PAUSE", "REWIND", "FASTFORWARD"
     )
 
     fun button(name: String) {
