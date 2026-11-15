@@ -110,23 +110,24 @@ font-size:12px;padding:6px;text-align:center;overflow:hidden;opacity:0;animation
 /* настройки */
 .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:12px}
 .lab{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-#trk{position:relative;height:46px;margin:34px 10px 6px;touch-action:none}
-#bar{position:absolute;left:0;right:0;top:14px;height:18px;border-radius:9px;background:#23233a;overflow:hidden}
-#fill{position:absolute;left:0;top:0;bottom:0;width:33.3%;overflow:hidden;border-radius:9px}
-#fill::before{content:'';position:absolute;left:0;top:0;height:100%;width:var(--tw,300px);background:var(--grad)}
-#trk.max #fill::before{background:linear-gradient(90deg,#3b82f6,#a855f7,#ec4899,#a855f7,#3b82f6);background-size:200% 100%;animation:shim 1.6s linear infinite}
+.trk{position:relative;height:46px;margin:34px 10px 6px;touch-action:none}
+.bar{position:absolute;left:0;right:0;top:14px;height:18px;border-radius:9px;background:#23233a;overflow:hidden}
+.fill{position:absolute;left:0;top:0;bottom:0;width:33.3%;overflow:hidden;border-radius:9px}
+.fill::before{content:'';position:absolute;left:0;top:0;height:100%;width:var(--tw,300px);background:var(--grad)}
+.trk.max .fill::before{background:linear-gradient(90deg,#3b82f6,#a855f7,#ec4899,#a855f7,#3b82f6);background-size:200% 100%;animation:shim 1.6s linear infinite}
 @keyframes shim{to{background-position:-200% 0}}
 .stop{position:absolute;top:19px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#ffffff44}
-#knob{position:absolute;top:7px;left:33.3%;width:32px;height:32px;margin-left:-16px;border-radius:50%;background:#fff;
+.knob{position:absolute;top:7px;left:33.3%;width:32px;height:32px;margin-left:-16px;border-radius:50%;background:#fff;
 box-shadow:0 2px 10px #0008;transition:transform .2s var(--spring)}
-#trk.drag #knob{transform:scale(1.2)}
-#bub{position:absolute;top:-30px;left:33.3%;transform:translateX(-50%);font-size:13px;font-weight:600;white-space:nowrap;
+.trk.drag .knob{transform:scale(1.2)}
+.bub{position:absolute;top:-30px;left:33.3%;transform:translateX(-50%);font-size:13px;font-weight:600;white-space:nowrap;
 background:#23233a;padding:3px 10px;border-radius:10px}
-#bub.t{animation:bt .3s var(--spring)}
+.bub.t{animation:bt .3s var(--spring)}
 @keyframes bt{from{transform:translateX(-50%) translateY(6px) scale(.8);opacity:.3}}
-#trk.snap #fill{transition:width .4s var(--spring)}
-#trk.snap #knob{transition:left .4s var(--spring),transform .2s var(--spring)}
-#trk.snap #bub{transition:left .4s var(--spring)}
+.trk.snap .fill{transition:width .4s var(--spring)}
+.trk.snap .knob{transition:left .4s var(--spring),transform .2s var(--spring)}
+.trk.snap .bub{transition:left .4s var(--spring)}
+.sub{font-size:12px;color:var(--mu);margin:12px 0 -4px}
 .sw{position:relative;width:54px;height:32px;border-radius:16px;background:#2f2f45;transition:background .3s}
 .sw i{position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:13px;background:#fff;transition:left .35s var(--spring),width .2s}
 .sw:active i{width:34px}
@@ -215,14 +216,15 @@ border-radius:14px;outline:none;user-select:text;-webkit-user-select:text}
 
 <section class="page" id="p4">
   <div class="card">
-    <div class="lab"><b>Скорость указки</b></div>
-    <div id="trk" class="snap">
-      <div id="bub">Норм.</div>
-      <div id="bar"><div id="fill"></div></div>
-      <span class="stop" style="left:0"></span><span class="stop" style="left:33.3%"></span>
-      <span class="stop" style="left:66.6%"></span><span class="stop" style="left:100%"></span>
-      <div id="knob"></div>
-    </div>
+    <div class="lab"><b>Скорость указки (гироскоп)</b></div>
+    <div class="sl" id="slg"></div>
+  </div>
+  <div class="card">
+    <div class="lab"><b>Тачпад</b></div>
+    <div class="sub">Скорость курсора</div><div class="sl" id="slt"></div>
+    <div class="sub">Скорость прокрутки</div><div class="sl" id="sls"></div>
+    <div class="sub">Плавность (инерция)</div><div class="sl" id="slm"></div>
+    <div class="sr"><span>Инвертировать прокрутку</span><div class="sw" id="isc"><i></i></div></div>
   </div>
   <div class="card">
     <div class="lab"><b>Положение телефона</b></div>
@@ -287,13 +289,18 @@ $$('[data-b]').forEach(b=>{
 });
 
 /* ---------- тачпад ---------- */
-let ax=0,ay=0;
-(function loop(){const dx=Math.trunc(ax),dy=Math.trunc(ay);if(dx||dy){ax-=dx;ay-=dy;send({t:'move',dx,dy})}requestAnimationFrame(loop)})();
+let ax=0,ay=0,sy=0;
+const TK=[1.4,2.0,2.8,4.0,5.5],SK=[0.12,0.25,0.5,0.9],SMV=[1,0.4,0.2];
+let tpad=ls('tpad',2),scr=ls('scr',1),smo=ls('smo',1),isc=ls('isc',false);
+function pull(v,a){if(Math.abs(v)<1)return 0;let t=Math.trunc(v*a);if(t===0)t=Math.sign(v);return t}
+(function loop(){const a=SMV[smo],dx=pull(ax,a),dy=pull(ay,a);
+  if(dx||dy){ax-=dx;ay-=dy;send({t:'move',dx,dy})}
+  let ds=pull(sy,a);if(ds){ds=Math.max(-40,Math.min(40,ds));sy-=ds;send({t:'scroll',dy:ds})}
+  requestAnimationFrame(loop)})();
 const pad=$('#pad');let lx,ly,moved,two,t0;
 pad.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];lx=t.clientX;ly=t.clientY;moved=0;two=e.touches.length>1;t0=Date.now()},{passive:false});
 pad.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0],dx=t.clientX-lx,dy=t.clientY-ly;lx=t.clientX;ly=t.clientY;moved+=Math.abs(dx)+Math.abs(dy);
-  const k=([350,700,1100,1700][sens])/350*1.4;
-  if(e.touches.length>1){two=true;send({t:'scroll',dy:Math.round(dy*2)})}else{ax+=dx*k;ay+=dy*k}},{passive:false});
+  if(e.touches.length>1){two=true;sy+=dy*SK[scr]*(isc?-1:1)}else{const k=TK[tpad];ax+=dx*k;ay+=dy*k}},{passive:false});
 pad.addEventListener('touchend',e=>{e.preventDefault();
   if(!e.touches.length&&!two&&moved<8&&Date.now()-t0<350){send({t:'click'});hap(8);
     const r=document.createElement('span');r.className='rip';const b=pad.getBoundingClientRect();
@@ -358,27 +365,39 @@ function renderTiles(list){
 $('#rfr').addEventListener('click',()=>{send({t:'apps'});hap(8)});
 renderTiles([]);
 
-/* ---------- слайдер скорости ---------- */
-const STOPS=['Плавно','Норм.','Быстро','Макс'],GAIN=[350,700,1100,1700];
+/* ---------- слайдеры ---------- */
+const GAIN=[350,700,1100,1700];
 let sens=ls('sens',1),mode=ls('mode',0),ix=ls('ix',false),iy=ls('iy',false);
-const trk=$('#trk'),fill=$('#fill'),knob=$('#knob'),bub=$('#bub');
-function place(f){const p=(f*100)+'%';fill.style.width=p;knob.style.left=p;bub.style.left=p}
-function lab(){bub.textContent=STOPS[sens];bub.classList.remove('t');void bub.offsetWidth;bub.classList.add('t');trk.classList.toggle('max',sens===3)}
 function cfg(){send({t:'cfg',gain:GAIN[sens],mode:mode,ix:ix,iy:iy})}
-function fit(){fill.style.setProperty('--tw',trk.querySelector('#bar').clientWidth+'px')}
-let drag=false;
-function upd(e){const r=trk.getBoundingClientRect(),f=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));place(f);
-  const i=Math.round(f*3);if(i!==sens){sens=i;hap(9);lab()}}
-trk.addEventListener('pointerdown',e=>{trk.setPointerCapture(e.pointerId);drag=true;trk.classList.remove('snap');trk.classList.add('drag');upd(e)});
-trk.addEventListener('pointermove',e=>{if(drag)upd(e)});
-const tEnd=()=>{if(!drag)return;drag=false;trk.classList.remove('drag');trk.classList.add('snap');place(sens/3);sv('sens',sens);cfg()};
-trk.addEventListener('pointerup',tEnd);trk.addEventListener('pointercancel',tEnd);
-window.addEventListener('resize',fit);
+const fits=[];
+function mkSlider(host,stops,val,onChange,shimmer){
+  host.classList.add('trk','snap');
+  host.innerHTML='<div class="bub"></div><div class="bar"><div class="fill"></div></div>'+
+    stops.map((_,i)=>'<span class="stop" style="left:'+(i*100/(stops.length-1))+'%"></span>').join('')+'<div class="knob"></div>';
+  const bub=host.querySelector('.bub'),bar=host.querySelector('.bar'),fill=host.querySelector('.fill'),knob=host.querySelector('.knob'),N=stops.length-1;
+  let idx=val,drag=false;
+  const place=f=>{const p=(f*100)+'%';fill.style.width=p;knob.style.left=p;bub.style.left=p};
+  const lab=()=>{bub.textContent=stops[idx];bub.classList.remove('t');void bub.offsetWidth;bub.classList.add('t');host.classList.toggle('max',!!shimmer&&idx===N)};
+  const fit=()=>fill.style.setProperty('--tw',bar.clientWidth+'px');
+  const upd=e=>{const r=host.getBoundingClientRect(),f=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));place(f);
+    const i=Math.round(f*N);if(i!==idx){idx=i;hap(9);lab()}};
+  host.addEventListener('pointerdown',e=>{host.setPointerCapture(e.pointerId);drag=true;host.classList.remove('snap');host.classList.add('drag');upd(e)});
+  host.addEventListener('pointermove',e=>{if(drag)upd(e)});
+  const end=()=>{if(!drag)return;drag=false;host.classList.remove('drag');host.classList.add('snap');place(idx/N);onChange(idx)};
+  host.addEventListener('pointerup',end);host.addEventListener('pointercancel',end);
+  place(idx/N);lab();fit();fits.push(fit);
+}
+mkSlider($('#slg'),['Плавно','Норм.','Быстро','Макс'],sens,i=>{sens=i;sv('sens',i);cfg()},true);
+mkSlider($('#slt'),['Очень медл.','Медленно','Норм.','Быстро','Макс'],tpad,i=>{tpad=i;sv('tpad',i)},true);
+mkSlider($('#sls'),['Очень медл.','Медленно','Норм.','Быстро'],scr,i=>{scr=i;sv('scr',i)},false);
+mkSlider($('#slm'),['Выкл','Мягко','Сильно'],smo,i=>{smo=i;sv('smo',i)},false);
+window.addEventListener('resize',()=>fits.forEach(f=>f()));
 
 /* режим и инверсии */
 function segUpd(){$('#seg i').style.transform='translateX('+(mode*100)+'%)'}
 $$('#seg button').forEach(b=>b.addEventListener('click',()=>{mode=+b.dataset.m;sv('mode',mode);segUpd();hap(10);cfg()}));
-function swUpd(){$('#ix').classList.toggle('on',ix);$('#iy').classList.toggle('on',iy)}
+function swUpd(){$('#ix').classList.toggle('on',ix);$('#iy').classList.toggle('on',iy);$('#isc').classList.toggle('on',isc)}
+$('#isc').addEventListener('click',()=>{isc=!isc;sv('isc',isc);swUpd();hap(10)});
 $('#ix').addEventListener('click',()=>{ix=!ix;sv('ix',ix);swUpd();hap(10);cfg()});
 $('#iy').addEventListener('click',()=>{iy=!iy;sv('iy',iy);swUpd();hap(10);cfg()});
 
@@ -415,5 +434,5 @@ window.onNative=function(type,d){
 };
 
 /* старт */
-place(sens/3);lab();fit();segUpd();swUpd();go(0);cfg();send({t:'ready'});
+segUpd();swUpd();go(0);cfg();send({t:'ready'});
 </script></body></html>

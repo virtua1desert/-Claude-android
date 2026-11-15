@@ -11,8 +11,8 @@ android {
         applicationId = "com.example.lgremote"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "2.1"
+        versionCode = 4
+        versionName = "2.2"
     }
 
     // Ключ подписи копируется из соседнего приложения в CI (см. workflow),
