@@ -36,18 +36,18 @@ transition:transform .45s var(--spring);z-index:0}
 
 /* тачпад */
 #p0{display:flex;flex-direction:column}
-#pad{position:relative;flex:1;min-height:120px;border-radius:22px;background:var(--card);border:1px solid var(--line);
+#pad{position:relative;flex:none;height:24vh;min-height:150px;border-radius:22px;background:var(--card);border:1px solid var(--line);
 display:flex;align-items:center;justify-content:center;color:#4a4a60;font-size:13px;overflow:hidden;touch-action:none}
 .rip{position:absolute;width:20px;height:20px;margin:-10px;border-radius:50%;background:#a855f7;opacity:.5;animation:rip .55s ease-out forwards;pointer-events:none}
 @keyframes rip{to{transform:scale(9);opacity:0}}
-#top0{display:flex;justify-content:center;align-items:stretch;gap:14px;margin-top:2px;flex:none}
-.rk{display:flex;gap:8px}
+#top0{--c:clamp(54px,18vw,80px);flex:1;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding-bottom:4px}
+.rk{display:flex;gap:8px;height:calc(var(--c)*3)}
 .rock{width:54px;display:flex;flex-direction:column;border-radius:27px;background:var(--card);border:1px solid var(--line);overflow:hidden}
 .rock button{flex:1;border:0;border-radius:0;background:none;font-size:22px;transition:background .15s}
 .rock button:active,.rock button.press{background:#2a2a44;transform:none}
 .rock .mid{flex:none;height:46px;font-size:16px}
 .rock .lbl{display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mu);letter-spacing:.08em;height:46px}
-.dpw{position:relative;display:grid;--c:clamp(58px,18vw,76px);grid-template:repeat(3,var(--c)) / repeat(3,var(--c))}
+.dpw{position:relative;display:grid;grid-template:repeat(3,var(--c)) / repeat(3,var(--c))}
 .cross{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 4px 10px #0009)}
 .cross path{fill:#1b1b28;stroke:#34344a;stroke-width:2}
 .cross circle{fill:#13131b;stroke:#2a2a3c;stroke-width:2}
@@ -56,8 +56,13 @@ display:flex;align-items:center;justify-content:center;color:#4a4a60;font-size:1
 .dpw .cn{margin:9px;background:#16161f;border:1px solid var(--line);border-radius:50%;font-size:18px}
 .dpw .cn:active,.dpw .cn.press{background:#2a2a44}
 #gyb{--m:0;transition:transform .15s var(--spring),background .2s,box-shadow .12s}
-#gyb.on{background:var(--grad);border-color:transparent;transform:scale(1.1);box-shadow:0 0 calc(6px + var(--m)*30px) #a855f7}
-#ok{flex:none;width:100%;height:62px;margin:14px 0 12px;border-radius:31px;background:var(--grad);border:0;font-weight:700;font-size:20px;letter-spacing:.1em;touch-action:none}
+#gyb.on{color:#fff;background:var(--grad);border-color:transparent;transform:scale(1.1);box-shadow:0 0 calc(6px + var(--m)*30px) #a855f7}
+#act{flex:none;display:flex;gap:10px;height:76px;margin:12px 0 10px}
+.ab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:24px;font-size:12px;color:var(--mu)}
+.ab b{font-size:24px;font-weight:400;line-height:1}
+#vc.rec{background:linear-gradient(135deg,#ff4d57,#a855f7);color:#fff;border-color:transparent;animation:rec 1s ease-in-out infinite}
+@keyframes rec{50%{transform:scale(1.06)}}
+#ok{flex:1.5;height:100%;margin:0;border-radius:24px;background:var(--grad);border:0;font-weight:700;font-size:22px;letter-spacing:.1em;touch-action:none}
 #ok.down{transform:scale(.97)}
 .row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
 .row button{height:50px}
@@ -163,10 +168,6 @@ border-radius:14px;outline:none;user-select:text;-webkit-user-select:text}
 
 <section class="page on" id="p0">
   <div id="top0">
-    <div class="rk">
-      <div class="rock"><button data-b="VOLUMEUP" data-r="1">+</button><button class="mid" data-b="MUTE">🔇</button><button data-b="VOLUMEDOWN" data-r="1">−</button></div>
-      <div class="rock"><button data-b="CHANNELUP" data-r="1">▲</button><div class="lbl">CH</div><button data-b="CHANNELDOWN" data-r="1">▼</button></div>
-    </div>
     <div class="dpw">
       <svg class="cross" viewBox="0 0 300 300"><path d="M110 0H190a10 10 0 0 1 10 10V100H290a10 10 0 0 1 10 10V190a10 10 0 0 1-10 10H200V290a10 10 0 0 1-10 10H110a10 10 0 0 1-10-10V200H10a10 10 0 0 1-10-10V110a10 10 0 0 1 10-10H100V10a10 10 0 0 1 10-10Z"/><circle cx="150" cy="150" r="26"/></svg>
       <button class="cn" style="grid-area:1/1" data-b="BACK">↩</button>
@@ -176,11 +177,19 @@ border-radius:14px;outline:none;user-select:text;-webkit-user-select:text}
       <button class="ar" style="grid-area:2/3" data-b="RIGHT" data-r="1">▶</button>
       <button class="cn" style="grid-area:3/1" data-b="MENU">☰</button>
       <button class="ar" style="grid-area:3/2" data-b="DOWN" data-r="1">▼</button>
-      <button class="cn" style="grid-area:3/3" id="gyb">🎯</button>
+      <button class="cn" style="grid-area:3/3" data-b="EXIT">✕</button>
+    </div>
+    <div class="rk">
+      <div class="rock"><button data-b="CHANNELUP" data-r="1">▲</button><div class="lbl">CH</div><button data-b="CHANNELDOWN" data-r="1">▼</button></div>
+      <div class="rock"><button data-b="VOLUMEUP" data-r="1">+</button><button class="mid" data-b="MUTE">🔇</button><button data-b="VOLUMEDOWN" data-r="1">−</button></div>
     </div>
   </div>
-  <button id="ok">OK</button>
-  <div id="pad">тачпад · тап = клик · два пальца = прокрутка<br>🎯 держите — указка гироскопом</div>
+  <div id="act">
+    <button class="ab" id="vc"><b>🎤</b><span id="vcl">Голос</span></button>
+    <button id="ok">OK</button>
+    <button class="ab" id="gyb"><b>🎯</b><span>Указка</span></button>
+  </div>
+  <div id="pad">тачпад · тап = клик · два пальца = прокрутка</div>
 </section>
 
 <section class="page" id="p1">
@@ -317,6 +326,9 @@ function gyroOff(){if(!gy)return;gy=false;orb.classList.remove('act');$('#gyb').
   $('#ghint').textContent='Зажмите шар и водите телефоном — курсор следует за ним'}
 ow.addEventListener('pointerdown',e=>{ow.setPointerCapture(e.pointerId);gyroOn()});
 ow.addEventListener('pointerup',gyroOff);ow.addEventListener('pointercancel',gyroOff);
+const vc=$('#vc');let vt=null;
+function vcap(t,ms){$('#vcl').textContent=t;clearTimeout(vt);if(ms)vt=setTimeout(()=>{$('#vcl').textContent='Голос';vc.classList.remove('rec')},ms)}
+vc.addEventListener('pointerdown',()=>{send({t:'voice'});hap(12);vc.classList.add('rec');vcap('Слушаю…',12000)});
 const gyb=$('#gyb');
 gyb.addEventListener('pointerdown',e=>{gyb.setPointerCapture(e.pointerId);gyroOn()});
 gyb.addEventListener('pointerup',gyroOff);gyb.addEventListener('pointercancel',gyroOff);
@@ -394,6 +406,7 @@ window.onNative=function(type,d){
     if(!d.gyro)$('#ghint').textContent='В этом телефоне нет гироскопа'}
   else if(type==='state'){setState(d.state,d.text)}
   else if(type==='apps'){renderTiles(d.list)}
+  else if(type==='voice'){vc.classList.remove('rec');vcap(d.text?('«'+d.text+'»'):d.err,3500)}
   else if(type==='gyro'){ow.style.setProperty('--m',Math.min(1,d.m/3));$('#gyb').style.setProperty('--m',Math.min(1,d.m/3))}
   else if(type==='scan'){const c=$('#chips');c.innerHTML='';
     $('#cst').textContent=d.hosts.length?'Найдено, выберите свой ТВ:':'Ничего не найдено. Введите IP вручную (на ТВ: Сеть → Wi-Fi/Проводное → IP-адрес).';

@@ -2,7 +2,10 @@ package com.example.lgremote
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.speech.RecognizerIntent
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -23,6 +26,8 @@ class MainActivity : Activity(), TvClient.Listener {
     private lateinit var tv: TvClient
     private lateinit var gyro: Gyro
     private var lastState = JSONObject().put("state", "connecting").put("text", "")
+    @Volatile private var keepAlive = false      // true, пока открыто окно распознавания речи
+    @Volatile private var pendingVoice: String? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,11 +46,12 @@ class MainActivity : Activity(), TvClient.Listener {
 
     override fun onStart() {
         super.onStart()
-        if (tv.savedHost.isNotEmpty()) tv.connect(tv.savedHost)
+        if (!keepAlive && tv.savedHost.isNotEmpty()) tv.connect(tv.savedHost)
     }
 
     override fun onStop() {
         super.onStop()
+        if (keepAlive) return
         gyro.stop()
         tv.disconnect()
     }
@@ -54,6 +60,7 @@ class MainActivity : Activity(), TvClient.Listener {
     override fun onState(state: String, text: String) {
         lastState = JSONObject().put("state", state).put("text", text)
         emit("state", lastState)
+        if (state == "ready") pendingVoice?.let { sendVoice(it) }
     }
 
     override fun onApps(json: String) {
@@ -108,6 +115,43 @@ class MainActivity : Activity(), TvClient.Listener {
         }.start()
     }
 
+    // ----- голосовой ввод: распознаёт телефон, текст вводится на ТВ -----
+    private fun startVoice() {
+        val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ru-RU")
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Скажите, что найти на ТВ")
+        runOnUiThread {
+            try {
+                keepAlive = true
+                startActivityForResult(i, 77)
+            } catch (e: ActivityNotFoundException) {
+                keepAlive = false
+                emit("voice", JSONObject().put("err", "Нет сервиса распознавания речи"))
+            }
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != 77) return
+        keepAlive = false
+        val text = if (resultCode == RESULT_OK) data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull() else null
+        if (text.isNullOrBlank()) {
+            emit("voice", JSONObject().put("err", "Не расслышал"))
+            return
+        }
+        emit("voice", JSONObject().put("text", text))
+        if (lastState.optString("state") == "ready") sendVoice(text) else pendingVoice = text
+    }
+
+    private fun sendVoice(text: String) {
+        pendingVoice = null
+        tv.text(text)
+        web.postDelayed({ tv.enter() }, 400)
+    }
+
     // ----- команды интерфейс → Kotlin -----
     inner class Bridge {
         @JavascriptInterface
@@ -138,6 +182,7 @@ class MainActivity : Activity(), TvClient.Listener {
             "launch" -> tv.launch(m.getString("id"))
             "apps" -> tv.refreshApps()
             "power" -> tv.powerOff()
+            "voice" -> startVoice()
             "gyro" -> if (m.getBoolean("on")) gyro.start() else gyro.stop()
             "cfg" -> {
                 gyro.gain = m.getDouble("gain").toFloat()
