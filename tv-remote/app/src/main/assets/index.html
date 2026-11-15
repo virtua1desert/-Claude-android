@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>LG Пульт</title>
+<style>
+:root{--bg:#0b0b10;--card:#16161f;--line:#2a2a38;--tx:#ececf4;--mu:#8a8aa0;--ac:#6c5ce7;
+--grad:linear-gradient(90deg,#3b82f6,#a855f7);--spring:cubic-bezier(.34,1.56,.64,1)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:16px/1.3 system-ui,sans-serif;overflow:hidden;touch-action:none}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+#top{height:34px;display:flex;align-items:center;gap:8px;padding:0 16px;font-size:12px;color:var(--mu)}
+#dot{width:8px;height:8px;border-radius:50%;background:#e5484d;transition:background .3s,box-shadow .3s}
+#dot.ok{background:#30d158;box-shadow:0 0 8px #30d158}
+#dot.wait{background:#f5a524}
+main{flex:1;position:relative}
+.page{position:absolute;inset:0;padding:6px 16px 12px;overflow-y:auto;opacity:0;transform:translateY(14px) scale(.985);
+pointer-events:none;transition:opacity .25s,transform .35s var(--spring)}
+.page.on{opacity:1;transform:none;pointer-events:auto}
+h2{margin:6px 0 10px;font-size:13px;font-weight:600;color:var(--mu);letter-spacing:.06em;text-transform:uppercase}
+button{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:0;
+transition:transform .18s var(--spring),background .2s}
+button:active,.press{transform:scale(.93);background:#202030}
+
+/* вкладки */
+#tabs{position:relative;display:flex;height:calc(64px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);
+background:#101018;border-top:1px solid var(--line)}
+#tabs button{flex:1;background:none;border:0;border-radius:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+gap:3px;color:var(--mu);font-size:10.5px;position:relative;z-index:1;transition:color .25s}
+#tabs button.on{color:#fff}
+#tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#tabs button.pop svg{animation:pop .5s var(--spring)}
+@keyframes pop{0%{transform:scale(1) rotate(0)}35%{transform:scale(1.35) rotate(-10deg)}70%{transform:scale(.92) rotate(5deg)}100%{transform:scale(1) rotate(0)}}
+#pill{position:absolute;top:6px;bottom:calc(6px + env(safe-area-inset-bottom));left:0;width:20%;padding:0 5px;
+transition:transform .45s var(--spring);z-index:0}
+#pill::before{content:'';display:block;height:100%;border-radius:16px;background:linear-gradient(135deg,#3b82f6aa,#a855f7aa)}
+
+/* тачпад */
+#pad{position:relative;height:25vh;min-height:150px;border-radius:22px;background:var(--card);border:1px solid var(--line);
+display:flex;align-items:center;justify-content:center;color:#4a4a60;font-size:13px;overflow:hidden;touch-action:none}
+.rip{position:absolute;width:20px;height:20px;margin:-10px;border-radius:50%;background:#a855f7;opacity:.5;animation:rip .55s ease-out forwards;pointer-events:none}
+@keyframes rip{to{transform:scale(9);opacity:0}}
+.dp{display:grid;grid-template-columns:repeat(3,76px);grid-template-rows:repeat(3,76px);gap:8px;justify-content:center;margin:16px 0 12px}
+.dp button{font-size:22px}
+#ok{border-radius:50%;background:var(--grad);border:0;font-weight:700;font-size:18px;touch-action:none;transition:transform .2s var(--spring)}
+#ok.down{transform:scale(.9)}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.row button{height:50px}
+
+/* радиальное меню */
+#radial{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;z-index:20}
+.ri{position:absolute;left:0;top:0;width:56px;height:56px;margin:-28px;border-radius:50%;background:#23233a;border:1px solid #3a3a55;
+display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:18px;line-height:1;
+transform:translate(0,0) scale(.2);opacity:0;transition:transform .34s var(--spring) var(--d),opacity .2s var(--d),background .15s}
+.ri small{font-size:9px;margin-top:2px;color:var(--mu)}
+#radial.open .ri{transform:translate(var(--x),var(--y)) scale(1);opacity:1}
+#radial.open .ri.hl{background:var(--grad);transform:translate(var(--x),var(--y)) scale(1.25);transition-delay:0s}
+#radial.open .ri.hl small{color:#fff}
+
+/* указка */
+.stage{display:flex;flex-direction:column;align-items:center;justify-content:center;height:56vh}
+.ow{--m:0;transform:scale(calc(1 + var(--m)*.28));transition:transform .12s linear;touch-action:none}
+.orb{width:210px;height:210px;border-radius:50%;
+background:radial-gradient(circle at 34% 28%,#e3ecff,#8fb0ff 38%,#6c5ce7 68%,#2b1f70);
+box-shadow:0 0 calc(30px + var(--m)*90px) rgba(108,92,231,.55);filter:saturate(.8);
+animation:breathe 3.6s ease-in-out infinite,morph 7s ease-in-out infinite;transition:filter .3s,box-shadow .12s}
+.orb.act{filter:saturate(1.5) brightness(1.12)}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+@keyframes morph{0%,100%{border-radius:50%}33%{border-radius:56% 44% 52% 48%/47% 55% 45% 53%}66%{border-radius:46% 54% 44% 56%/54% 46% 54% 46%}}
+.hint{margin-top:26px;color:var(--mu);font-size:14px;text-align:center;max-width:260px;transition:color .3s}
+.big{width:100%;height:56px;font-size:17px;margin-top:10px}
+
+/* текст */
+.tr{display:flex;gap:8px}
+#tx{flex:1;min-width:0;height:54px;font:inherit;font-size:18px;color:#fff;background:#000;border:1px solid var(--line);border-radius:16px;
+padding:0 14px;user-select:text;-webkit-user-select:text;outline:none;transition:border-color .2s}
+#tx:focus{border-color:#a855f7}
+#snd{width:56px;height:54px;background:var(--grad);border:0}
+#snd svg{width:24px;height:24px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#snd.fly svg{animation:fly .5s ease-in}
+@keyframes fly{0%{transform:translate(0,0)}60%{transform:translate(26px,-14px);opacity:0}61%{transform:translate(-26px,14px);opacity:0}100%{transform:none;opacity:1}}
+
+/* плитки */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{height:96px;border-radius:20px;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+font-size:12px;padding:6px;text-align:center;overflow:hidden;opacity:0;animation:tin .45s var(--spring) forwards;animation-delay:calc(var(--i)*35ms)}
+.tile b{font-size:26px;line-height:1}
+@keyframes tin{from{opacity:0;transform:translateY(16px) scale(.9)}to{opacity:1;transform:none}}
+
+/* настройки */
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:12px}
+.lab{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+#trk{position:relative;height:46px;margin:34px 10px 6px;touch-action:none}
+#bar{position:absolute;left:0;right:0;top:14px;height:18px;border-radius:9px;background:#23233a;overflow:hidden}
+#fill{position:absolute;left:0;top:0;bottom:0;width:33.3%;overflow:hidden;border-radius:9px}
+#fill::before{content:'';position:absolute;left:0;top:0;height:100%;width:var(--tw,300px);background:var(--grad)}
+#trk.max #fill::before{background:linear-gradient(90deg,#3b82f6,#a855f7,#ec4899,#a855f7,#3b82f6);background-size:200% 100%;animation:shim 1.6s linear infinite}
+@keyframes shim{to{background-position:-200% 0}}
+.stop{position:absolute;top:19px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#ffffff44}
+#knob{position:absolute;top:7px;left:33.3%;width:32px;height:32px;margin-left:-16px;border-radius:50%;background:#fff;
+box-shadow:0 2px 10px #0008;transition:transform .2s var(--spring)}
+#trk.drag #knob{transform:scale(1.2)}
+#bub{position:absolute;top:-30px;left:33.3%;transform:translateX(-50%);font-size:13px;font-weight:600;white-space:nowrap;
+background:#23233a;padding:3px 10px;border-radius:10px}
+#bub.t{animation:bt .3s var(--spring)}
+@keyframes bt{from{transform:translateX(-50%) translateY(6px) scale(.8);opacity:.3}}
+#trk.snap #fill{transition:width .4s var(--spring)}
+#trk.snap #knob{transition:left .4s var(--spring),transform .2s var(--spring)}
+#trk.snap #bub{transition:left .4s var(--spring)}
+.sw{position:relative;width:54px;height:32px;border-radius:16px;background:#2f2f45;transition:background .3s}
+.sw i{position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:13px;background:#fff;transition:left .35s var(--spring),width .2s}
+.sw:active i{width:34px}
+.sw.on{background:#7c5cf0}.sw.on i{left:25px}.sw.on:active i{left:17px}
+.sr{display:flex;justify-content:space-between;align-items:center;padding:8px 0}
+#seg{position:relative;display:flex;background:#23233a;border-radius:14px;padding:3px}
+#seg i{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:11px;background:var(--grad);transition:transform .4s var(--spring)}
+#seg button{flex:1;position:relative;background:none;border:0;height:40px;font-size:13px;border-radius:11px}
+#pwr{position:relative;width:100%;height:60px;border-color:#5a2a30;display:flex;align-items:center;justify-content:center;gap:12px;color:#ff6b72}
+#pwr svg{width:44px;height:44px;transform:rotate(-90deg)}
+#pwr circle{fill:none;stroke-width:3.5}
+#pwr .bg{stroke:#5a2a30}
+#pwr .r{stroke:#ff4d57;stroke-linecap:round;stroke-dasharray:125.7;stroke-dashoffset:125.7;transition:stroke-dashoffset .25s}
+#pwr.hold .r{stroke-dashoffset:0;transition:stroke-dashoffset 1.2s linear}
+#pwr.hold{transform:scale(.97)}
+#pwr.done{animation:done .6s}
+@keyframes done{30%{background:#ff4d57;color:#fff}}
+
+/* подключение */
+#conn{position:absolute;inset:0;z-index:50;background:#0b0b10f2;display:flex;flex-direction:column;align-items:center;justify-content:center;
+padding:28px;gap:14px;text-align:center;opacity:0;pointer-events:none;transition:opacity .35s}
+#conn.show{opacity:1;pointer-events:auto}
+#conn h1{margin:0;font-size:26px}
+#cst{color:var(--mu);min-height:40px;font-size:14px}
+#conn[data-s=pairing] #cst{color:#f5a524}
+.spin{width:36px;height:36px;border-radius:50%;border:3px solid #2a2a38;border-top-color:#a855f7;animation:sp 1s linear infinite}
+#conn[data-s=error] .spin{display:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+#ip{width:100%;max-width:300px;height:52px;font:inherit;font-size:18px;text-align:center;color:#fff;background:#000;border:1px solid var(--line);
+border-radius:14px;outline:none;user-select:text;-webkit-user-select:text}
+#conn .b{width:100%;max-width:300px;height:50px;font-size:16px}
+#go{background:var(--grad);border:0;font-weight:600}
+#chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+#chips button{padding:8px 14px;border-radius:20px;font-size:14px}
+</style></head>
+<body><div id="app">
+<div id="top"><div id="dot"></div><span id="stx">Нет подключения</span></div>
+<main>
+
+<section class="page on" id="p0">
+  <div id="pad">тачпад · тап = клик · два пальца = прокрутка</div>
+  <div class="dp">
+    <button data-b="BACK">↩</button><button data-b="UP" data-r="1">▲</button><button data-b="HOME">⌂</button>
+    <button data-b="LEFT" data-r="1">◀</button><button id="ok">OK</button><button data-b="RIGHT" data-r="1">▶</button>
+    <button data-b="MENU">☰</button><button data-b="DOWN" data-r="1">▼</button><button data-b="EXIT">✕</button>
+  </div>
+  <div class="row">
+    <button data-b="VOLUMEDOWN" data-r="1">🔉 −</button><button data-b="MUTE">🔇</button><button data-b="VOLUMEUP" data-r="1">🔊 +</button>
+  </div>
+</section>
+
+<section class="page" id="p1">
+  <div class="stage">
+    <div class="ow" id="ow"><div class="orb" id="orb"></div></div>
+    <div class="hint" id="ghint">Зажмите шар и водите телефоном — курсор следует за ним</div>
+  </div>
+  <button class="big" id="gclick">Клик</button>
+</section>
+
+<section class="page" id="p2">
+  <h2>Ввод текста на ТВ</h2>
+  <div class="tr"><input id="tx" placeholder="Откройте поле ввода на ТВ" autocomplete="off">
+    <button id="snd"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button></div>
+  <div class="row" style="grid-template-columns:1fr 1fr"><button id="del">⌫ Стереть</button><button id="ent">Enter ↵</button></div>
+</section>
+
+<section class="page" id="p3">
+  <h2>Плитки</h2>
+  <div class="grid" id="grid"></div>
+  <button class="big" id="rfr">Обновить список</button>
+</section>
+
+<section class="page" id="p4">
+  <div class="card">
+    <div class="lab"><b>Скорость указки</b></div>
+    <div id="trk" class="snap">
+      <div id="bub">Норм.</div>
+      <div id="bar"><div id="fill"></div></div>
+      <span class="stop" style="left:0"></span><span class="stop" style="left:33.3%"></span>
+      <span class="stop" style="left:66.6%"></span><span class="stop" style="left:100%"></span>
+      <div id="knob"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="lab"><b>Положение телефона</b></div>
+    <div id="seg"><i></i><button data-m="0">Лёжа, как пульт</button><button data-m="1">Экраном к себе</button></div>
+    <div class="sr"><span>Инвертировать ←→</span><div class="sw" id="ix"><i></i></div></div>
+    <div class="sr"><span>Инвертировать ↑↓</span><div class="sw" id="iy"><i></i></div></div>
+  </div>
+  <div class="card">
+    <div class="lab"><b>Телевизор</b><span id="hostl" style="color:var(--mu)"></span></div>
+    <button class="big" id="chg" style="margin:0 0 10px">Сменить ТВ</button>
+    <button id="pwr"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="20"/><circle class="r" cx="22" cy="22" r="20"/></svg>
+      <span>Удерживайте — выключить ТВ</span></button>
+  </div>
+</section>
+
+</main>
+<nav id="tabs">
+  <div id="pill"></div>
+  <button class="on" data-i="0"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><circle cx="12" cy="8" r="2"/><path d="M10 14h4M10 18h4"/></svg>Пульт</button>
+  <button data-i="1"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Указка</button>
+  <button data-i="2"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Текст</button>
+  <button data-i="3"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>Плитки</button>
+  <button data-i="4"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Ещё</button>
+</nav>
+<div id="radial"></div>
+<div id="conn" data-s="connecting">
+  <h1>LG Пульт</h1><div class="spin"></div><div id="cst">Подключаюсь…</div>
+  <input id="ip" inputmode="decimal" placeholder="IP телевизора, напр. 192.168.1.45">
+  <button class="b" id="go">Подключиться</button>
+  <button class="b" id="scan">Найти ТВ в сети</button>
+  <div id="chips"></div>
+</div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const send=o=>{try{window.Android&&Android.cmd(JSON.stringify(o))}catch(e){}};
+const hap=ms=>send({t:'haptic',ms});
+const ls=(k,d)=>{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)};
+const sv=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+
+/* ---------- вкладки ---------- */
+let gy=false;
+function go(i){
+  $$('.page').forEach((p,k)=>p.classList.toggle('on',k===i));
+  $$('#tabs button').forEach((b,k)=>{b.classList.toggle('on',k===i);b.classList.remove('pop');
+    if(k===i){void b.offsetWidth;b.classList.add('pop')}});
+  $('#pill').style.transform='translateX('+(i*100)+'%)';
+  if(i!==1)gyroOff();
+}
+$$('#tabs button').forEach(b=>b.addEventListener('pointerdown',()=>{go(+b.dataset.i);hap(6)}));
+
+/* ---------- кнопки с автоповтором ---------- */
+$$('[data-b]').forEach(b=>{
+  let t=null,iv=null;
+  const stop=()=>{clearTimeout(t);clearInterval(iv);b.classList.remove('press')};
+  b.addEventListener('pointerdown',e=>{
+    b.setPointerCapture(e.pointerId);b.classList.add('press');send({t:'btn',n:b.dataset.b});hap(7);
+    if(b.dataset.r)t=setTimeout(()=>{iv=setInterval(()=>send({t:'btn',n:b.dataset.b}),110)},380);
+  });
+  b.addEventListener('pointerup',stop);b.addEventListener('pointercancel',stop);
+});
+
+/* ---------- тачпад ---------- */
+let ax=0,ay=0;
+(function loop(){const dx=Math.trunc(ax),dy=Math.trunc(ay);if(dx||dy){ax-=dx;ay-=dy;send({t:'move',dx,dy})}requestAnimationFrame(loop)})();
+const pad=$('#pad');let lx,ly,moved,two,t0;
+pad.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];lx=t.clientX;ly=t.clientY;moved=0;two=e.touches.length>1;t0=Date.now()},{passive:false});
+pad.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0],dx=t.clientX-lx,dy=t.clientY-ly;lx=t.clientX;ly=t.clientY;moved+=Math.abs(dx)+Math.abs(dy);
+  const k=([350,700,1100,1700][sens])/350*1.4;
+  if(e.touches.length>1){two=true;send({t:'scroll',dy:Math.round(dy*2)})}else{ax+=dx*k;ay+=dy*k}},{passive:false});
+pad.addEventListener('touchend',e=>{e.preventDefault();
+  if(!e.touches.length&&!two&&moved<8&&Date.now()-t0<350){send({t:'click'});hap(8);
+    const r=document.createElement('span');r.className='rip';const b=pad.getBoundingClientRect();
+    r.style.left=(lx-b.left)+'px';r.style.top=(ly-b.top)+'px';pad.appendChild(r);r.addEventListener('animationend',()=>r.remove())}},{passive:false});
+
+/* ---------- OK + радиальное меню ---------- */
+const items=[['BACK','↩','Назад'],['HOME','⌂','Дом'],['MENU','☰','Меню'],['MUTE','🔇','Звук'],['EXIT','✕','Выход']];
+const rad=$('#radial'),ok=$('#ok'),R=108,pos=[];
+items.forEach((it,i)=>{const a=(-160+i*35)*Math.PI/180,x=Math.cos(a)*R,y=Math.sin(a)*R;pos.push([x,y]);
+  const d=document.createElement('div');d.className='ri';d.style.setProperty('--x',x+'px');d.style.setProperty('--y',y+'px');
+  d.style.setProperty('--d',(i*35)+'ms');d.innerHTML=it[1]+'<small>'+it[2]+'</small>';rad.appendChild(d)});
+let lp=null,opened=false,hl=-1,cx=0,cy=0;
+function openRad(){const r=ok.getBoundingClientRect(),a=$('#app').getBoundingClientRect();
+  cx=r.left+r.width/2;cy=r.top+r.height/2;rad.style.left=(cx-a.left)+'px';rad.style.top=(cy-a.top)+'px';rad.classList.add('open')}
+function setHl(i){if(i===hl)return;hl=i;$$('.ri').forEach((e,k)=>e.classList.toggle('hl',k===i));if(i>=0)hap(8)}
+ok.addEventListener('pointerdown',e=>{ok.setPointerCapture(e.pointerId);opened=false;hl=-1;ok.classList.add('down');
+  lp=setTimeout(()=>{opened=true;openRad();hap(20)},380)});
+ok.addEventListener('pointermove',e=>{if(!opened)return;let best=-1,bd=56;
+  pos.forEach((p,i)=>{const d=Math.hypot(e.clientX-(cx+p[0]),e.clientY-(cy+p[1]));if(d<bd){bd=d;best=i}});setHl(best)});
+const okEnd=e=>{clearTimeout(lp);ok.classList.remove('down');
+  if(opened){if(hl>=0){send({t:'btn',n:items[hl][0]});hap(14)}rad.classList.remove('open');setHl(-1)}
+  else if(e.type==='pointerup'){send({t:'btn',n:'ENTER'});hap(8)}
+  opened=false};
+ok.addEventListener('pointerup',okEnd);ok.addEventListener('pointercancel',okEnd);
+
+/* ---------- указка (шар) ---------- */
+const orb=$('#orb'),ow=$('#ow');
+function gyroOn(){if(gy)return;gy=true;orb.classList.add('act');send({t:'gyro',on:true});hap(14);$('#ghint').textContent='Двигайте телефоном…'}
+function gyroOff(){if(!gy)return;gy=false;orb.classList.remove('act');send({t:'gyro',on:false});ow.style.setProperty('--m',0);
+  $('#ghint').textContent='Зажмите шар и водите телефоном — курсор следует за ним'}
+ow.addEventListener('pointerdown',e=>{ow.setPointerCapture(e.pointerId);gyroOn()});
+ow.addEventListener('pointerup',gyroOff);ow.addEventListener('pointercancel',gyroOff);
+$('#gclick').addEventListener('pointerdown',()=>{send({t:'click'});hap(10)});
+
+/* ---------- текст ---------- */
+function sendText(){const v=$('#tx').value;if(!v){send({t:'enter'});return}
+  send({t:'text',s:v});$('#tx').value='';const b=$('#snd');b.classList.remove('fly');void b.offsetWidth;b.classList.add('fly');hap(10)}
+$('#snd').addEventListener('click',sendText);
+$('#tx').addEventListener('keydown',e=>{if(e.key==='Enter')sendText()});
+$('#del').addEventListener('pointerdown',()=>{send({t:'del'});hap(8)});
+$('#ent').addEventListener('pointerdown',()=>{send({t:'enter'});hap(8)});
+
+/* ---------- плитки ---------- */
+function renderTiles(list){
+  const g=$('#grid');g.innerHTML='';
+  const all=[{title:'HDRezka',sub:'hdrezka.ag',url:'https://hdrezka.ag',c:350}].concat(
+    (list||[]).filter(a=>a&&a.title).map(a=>({title:a.title,id:a.id,c:[...String(a.id)].reduce((s,ch)=>(s*31+ch.charCodeAt(0))%360,7)})));
+  all.forEach((a,i)=>{
+    const b=document.createElement('button');b.className='tile';b.style.setProperty('--i',i);
+    b.style.background='linear-gradient(145deg,hsl('+a.c+' 55% 32%),hsl('+((a.c+40)%360)+' 55% 22%))';
+    const l=document.createElement('b');l.textContent=a.title.trim().charAt(0).toUpperCase();
+    const t=document.createElement('span');t.textContent=a.title;b.appendChild(l);b.appendChild(t);
+    b.addEventListener('click',()=>{hap(12);send(a.url?{t:'open',url:a.url}:{t:'launch',id:a.id})});
+    g.appendChild(b)});
+}
+$('#rfr').addEventListener('click',()=>{send({t:'apps'});hap(8)});
+renderTiles([]);
+
+/* ---------- слайдер скорости ---------- */
+const STOPS=['Плавно','Норм.','Быстро','Макс'],GAIN=[350,700,1100,1700];
+let sens=ls('sens',1),mode=ls('mode',0),ix=ls('ix',false),iy=ls('iy',false);
+const trk=$('#trk'),fill=$('#fill'),knob=$('#knob'),bub=$('#bub');
+function place(f){const p=(f*100)+'%';fill.style.width=p;knob.style.left=p;bub.style.left=p}
+function lab(){bub.textContent=STOPS[sens];bub.classList.remove('t');void bub.offsetWidth;bub.classList.add('t');trk.classList.toggle('max',sens===3)}
+function cfg(){send({t:'cfg',gain:GAIN[sens],mode:mode,ix:ix,iy:iy})}
+function fit(){fill.style.setProperty('--tw',trk.querySelector('#bar').clientWidth+'px')}
+let drag=false;
+function upd(e){const r=trk.getBoundingClientRect(),f=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));place(f);
+  const i=Math.round(f*3);if(i!==sens){sens=i;hap(9);lab()}}
+trk.addEventListener('pointerdown',e=>{trk.setPointerCapture(e.pointerId);drag=true;trk.classList.remove('snap');trk.classList.add('drag');upd(e)});
+trk.addEventListener('pointermove',e=>{if(drag)upd(e)});
+const tEnd=()=>{if(!drag)return;drag=false;trk.classList.remove('drag');trk.classList.add('snap');place(sens/3);sv('sens',sens);cfg()};
+trk.addEventListener('pointerup',tEnd);trk.addEventListener('pointercancel',tEnd);
+window.addEventListener('resize',fit);
+
+/* режим и инверсии */
+function segUpd(){$('#seg i').style.transform='translateX('+(mode*100)+'%)'}
+$$('#seg button').forEach(b=>b.addEventListener('click',()=>{mode=+b.dataset.m;sv('mode',mode);segUpd();hap(10);cfg()}));
+function swUpd(){$('#ix').classList.toggle('on',ix);$('#iy').classList.toggle('on',iy)}
+$('#ix').addEventListener('click',()=>{ix=!ix;sv('ix',ix);swUpd();hap(10);cfg()});
+$('#iy').addEventListener('click',()=>{iy=!iy;sv('iy',iy);swUpd();hap(10);cfg()});
+
+/* выключение с удержанием */
+const pw=$('#pwr');let pt=null;
+pw.addEventListener('pointerdown',e=>{pw.setPointerCapture(e.pointerId);pw.classList.add('hold');
+  pt=setTimeout(()=>{send({t:'power'});hap(50);pw.classList.remove('hold');pw.classList.add('done');setTimeout(()=>pw.classList.remove('done'),700)},1200)});
+const pe=()=>{clearTimeout(pt);pw.classList.remove('hold')};
+pw.addEventListener('pointerup',pe);pw.addEventListener('pointercancel',pe);
+
+/* ---------- подключение ---------- */
+const conn=$('#conn');
+function setState(s,t){
+  conn.dataset.s=s;$('#cst').textContent=t||'';$('#stx').textContent=s==='ready'?'Подключено':t||'';
+  $('#dot').className=s==='ready'?'ok':(s==='error'?'':'wait');
+  conn.classList.toggle('show',s!=='ready');
+  if(s==='ready'){send({t:'cfg',gain:GAIN[sens],mode:mode,ix:ix,iy:iy})}
+}
+$('#go').addEventListener('click',()=>{const h=$('#ip').value.trim();if(h){send({t:'connect',host:h});setState('connecting','Подключаюсь к '+h+'…')}});
+$('#scan').addEventListener('click',()=>{$('#chips').innerHTML='';$('#cst').textContent='Ищу телевизор в сети…';send({t:'scan'})});
+$('#chg').addEventListener('click',()=>{setState('error','Введите адрес другого телевизора')});
+
+window.onNative=function(type,d){
+  if(type==='init'){$('#ip').value=d.host||'';$('#hostl').textContent=d.host||'';
+    if(!d.gyro)$('#ghint').textContent='В этом телефоне нет гироскопа'}
+  else if(type==='state'){setState(d.state,d.text)}
+  else if(type==='apps'){renderTiles(d.list)}
+  else if(type==='gyro'){ow.style.setProperty('--m',Math.min(1,d.m/3))}
+  else if(type==='scan'){const c=$('#chips');c.innerHTML='';
+    $('#cst').textContent=d.hosts.length?'Найдено, выберите свой ТВ:':'Ничего не найдено. Введите IP вручную (на ТВ: Сеть → Wi-Fi/Проводное → IP-адрес).';
+    d.hosts.forEach(h=>{const b=document.createElement('button');b.textContent=h;
+      b.addEventListener('click',()=>{$('#ip').value=h;send({t:'connect',host:h});setState('connecting','Подключаюсь к '+h+'…')});c.appendChild(b)})}
+};
+
+/* старт */
+place(sens/3);lab();fit();segUpd();swUpd();go(0);cfg();send({t:'ready'});
+</script></body></html>
